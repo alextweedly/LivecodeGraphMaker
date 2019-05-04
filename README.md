@@ -1,2 +1,2 @@
 # LivecodeGraphMaker
-Graphing (plotting( library for Livecode.
+Graphing (plotting) library for Livecode.
