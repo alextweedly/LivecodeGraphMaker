@@ -33,20 +33,26 @@ YRightRangeIncludes, YRightFit - same for Y on right
 Title - a title (displayed at the top of the graph)
 XAxisTitle, YAxisTitle, YRAxisTitle - titles to be displayed by each axis
 
-XGridInterval - gap (in data units) between vertical grid lines (i.e. for X valuea)
-     set to 0 (default) for no grid
-XTickInterval - same as XGridInterval, but for ticks.
-     0 = no axis at all, empty = (default) axis but no tick
-     >0 = ticks at multiples of interval (0, 2, 4, ...)
-     <0 ticks at interval FROM xmin  (maybe 1, 3, 5, ...)
+XTickInterval - value (in data units) between tick marks
+     empty  (default) adaptively calculate where to put ticks
+     > 0   put  ticks at multiples of interval (0, 2, 4, ...)
+     0      draw the axis, but no ticks
+    <0 No ticks or axis at all
 
-XTickLabelSpacing : 'N' = put label at each N'th tick ... (0 for none)
-YTickLabelSpacing : 'N' = put label at each N'th tick ... (0 for none)
+XTickLabelSpacing : 'N' = put label at each N'th tick ... 
+            empty (default) for adaptive, 
+            0 for none (i.e. no ticks, no space set aside)
+           -1 no ticks, but leave space - e.g. for a XTicklabels dataset 
+
+XGridInterval - gap (in data units) between vertical grid lines (i.e. for X valuea)
+         0 or empty (default) for grid at "labelSpacing" points (i.e. adaptive)
+         -1 for no grid
+         'N' for one grid line every Nth tick
 
 backgroundcolor - color for background of the whole graph
 
-YGridInterval,  YTickInterval - as X
-YRGridInterval,  YRTickInterval - as X for right side
+YGridInterval,  YTickInterval, YTickLabelSpacing : same as for X, but for Y
+YRGridInterval,  YRTickInterval, YRTickLabelSpacing : same  but for Y on the right
 
 DataIncludesX - if TRUE, then each line of each dataset contains an X value
               - otherwise, no X values are present in the datasets,
@@ -54,12 +60,10 @@ DataIncludesX - if TRUE, then each line of each dataset contains an X value
                  default (i.e. empty) is for inital value of 0, and step value 1
            NB - applies to ALL datasets
 
-itemDel, lineDel : replacing comma/CR for convenience
-
-hints - contains for each axis, hnts to determine the interval and labelsspacing values for both
+hints - contains for each axis, hints to determine the interval and labelspacing values for both
         Ticks and Grids.  This sets the initial, minimum, maximum and step-multiplier to use in
         the calculations.
-        NB these are all in source data values, not pixels.
+NOT YET IMPLEMENTED
 
 
 Then there are the datasets.
@@ -70,19 +74,25 @@ Data - one or more datasets, numerically indexed, in bottom-to-top drawing order
 Dataset Parameters
 ------------------
 
+NB these 'dataset' parameters can also be set at the top level, and
+then become the default for all datasets, but can be overridden for
+individual datasets.
+
 name - the name of this dataset (not actually used for anything yet)
 
 graphtype  one of bar, line, step, Xticklabels, Yticklabels, Xgridlabels, Ygridlabels
-             for "line", it can be followed by additional optional words :
-                  - filled   - fill in below this line, with fillcolor
-                  - invisibe (i.e. no line segments, but still draw markers)
-             for "step", it can be followed by additional optional words :
-                  - verticalFirst (default) or horizontalFirst
-                     describe whether to go up/down then along, or along then up/down
-  Note that bar, step and line graphs can be "stacked" - i.e. there can be multiple Y values
+             for "line", we can also set
+filled   - fill in below this line, with fillcolor
+invisible (i.e. no line segments, but still draw markers)
+             for "step", we can also set
+horizontalFirst, otherwise we go vertical first
+                     (i.e. whether to go up/down then along, or along then up/down)
+
+Note that bar, step and line graphs can be "stacked" - i.e. there can be multiple Y values
    producing "stacked" graphs.
 
-  Likely future additional graphtype - bubble charts.
+
+Likely future additional graphtype - bubble charts.
 
 color  : colour value, one per line for stacked charts
 lineSize  : size (width) of the line to be drawn, one per line for stacked charts
@@ -95,8 +105,15 @@ values - list of values for the dataset
                    NB these all share other values, but can have different colors
           - or,  if graphtype=Xlabels then it is  'label' or if DataIncludesX then X,Label
 
-blend - blend level for drawing
-dropshadow - put in a dropshadow
+allowColonDel : replace ":" with CR in the "values" -  for convenience (default ON)
+                            explicitly set to FALSE  turn off
+
+
+blendlevel - blend level for drawing
+dropshadow - put in a dropshadow,
+                      either TRUE for a default shadow
+                      or a list of lines of name,value pairs ovrriding
+		      the default
 
 YRaxis : use the Right axis for scaling, etc.
 
@@ -112,14 +129,14 @@ barDensity :  specifies the percentage of the ratio between bar and gap
 
 X Value spacing
 
-For a graph consistng only of line charts, the calculation of X_value spacing is straightforward. We calculate the spread of X data values (i.e. min to max values, plus anything specified in an 'XIncludes', and then rounded out to include anything needed for an 'XFit'). Let's call this the "virtual data range". This range of values is then scaled to cover the visual space from the Y-axis to the right-Y-axis.
+For a graph consisting only of line charts, the calculation of X_value spacing is straightforward. We calculate the spread of X data values (i.e. min to max values, plus anything specified in an 'XIncludes', and then rounded out to include anything needed for an 'XFit'). Let's call this the "virtual data range". This range of values is then scaled to cover the visual space from the Y-axis to the right-Y-axis.
 
 However, for a bar-chart, we need to allow the space for a 1/2 gap width plus a 1/2 bar width on each side of these (virtual) data values. Also, we need to allow a way to specify the 'density' of the display - i.e. how wide the bars are, and how wide the gaps between them are. And, especially in the case of DataIncludesX
 
-Xunit - X_unit   (NB shared for all datasets in the whole graph)
-        X_unit specifies the unit size (i.e. in 'source data' terms)
+Xunit - Xunit   (NB shared for all datasets in the whole graph)
+        Xunit specifies the unit size (i.e. in 'source data' terms)
 
-        The default is for the X_unit to be 1 (as it will be unless DataIncludesX is TRUE), while the default for barDensity is 75.
+        The default is for the Xunit to be 1 (as it will be unless DataIncludesX is TRUE), while the default for barDensity is 75.
 
 
 Parameters and settings NOT implemented
@@ -127,10 +144,19 @@ Parameters and settings NOT implemented
 
 (not yet)
 ---------
-?? XGridMinor - number of minor grids per major grid
-??      set to 0 (default) for no minor grid
-??   (same for YGridMinor and YRGridMinor)
-?? XTGridInterval, XTGridMinor, XTTickInterval - as X for top axis
+
+YAxis Title 
+Line type (dotted, dashed, etc.)
+Invisible gaps in data (?)
+Off-grid line labels
+Specified position for axes (e.g. draw the Y axis at X=200, rather
+than at minX)
+Axis breaks (i.e. to indicate off-scale axis)
+
+XGridMinor - number of minor grids per major grid
+    set to 0 (default) for no minor grid
+ (same for YGridMinor and YRGridMinor)
+XTGridInterval, XTGridMinor, XTTickInterval - as X for top axis
 
 
 (and some that probably never will be)
