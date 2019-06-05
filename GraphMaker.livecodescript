@@ -92,7 +92,7 @@ function gmMakeGraph pId, pAG
    
    _gmCreateDefaults
    
-   put empty into sAG
+   put empty into sAG 
    
    -- make ourselves a group to hold all our controls
    put _gmCreateGraph(pID) into temp
@@ -350,6 +350,32 @@ function gmMakeGraph pId, pAG
                put firstOf(pAG["data"][K]["blendLevel"], pAG["blendLevel"], 30) into temp
                set the blendLevel of tName to temp
                
+               switch
+                  case pAG["data"][K]["dashed"] is true
+                     put sADefaults["dashed"] into temp
+                     break
+                  case pAG["data"][K]["dotted"] is true
+                     put sADefaults["dotted"] into temp
+                     break
+                  case pAG["data"][K]["dotdashed"] is true
+                     put sADefaults["dotdashed"] into temp
+                     break
+                  case pAG["data"][K]["dotdashed"] is not empty
+                     put pAG["data"][K]["dotdashed"] into temp
+                     break
+                  case pAG["data"][K]["dotted"] is not empty 
+                     put pAG["data"][K]["dotted"] into temp
+                     break
+                  case pAG["data"][K]["dashed"] is not empty 
+                     put pAG["data"][K]["dashed"] into temp
+                     break
+                  default
+                     put empty into temp
+               end switch
+               if temp is not empty then
+                  set the dashes of tName to temp
+               end if
+               
                local tA
                if pAG["data"][K]["dropshadow"] is not empty then
                   put sADefaults["dropShadow"]  into tA
@@ -383,6 +409,7 @@ function gmMakeGraph pId, pAG
                   set the markerdrawn of tName to TRUE
                end if
                
+               --               set the dashes of tName to sAG["dashed"]
                set the vis of tName to TRUE
             end repeat
             break
@@ -437,7 +464,9 @@ function gmMakeGraph pId, pAG
                put _scalexy(item 1 of L, sAG["YMin"]) into temp
                put item 1 of temp into tX
                put item 2 of temp into tY
-               put formatLabel(item 2 of L, pAG["XAxisLabelFormat"]) into tString
+               -- NB do not format - this graphtype already has explicit labels
+               -- put formatLabel(item 2 of L, pAG["XAxisLabelFormat"]) into tString
+               put formatLabel(item 2 of L, empty) into tString
                put _gmCreateText(pID, tString, tX, tY,\
                      5, FALSE, \
                      empty, \ -- the name for this control
@@ -456,7 +485,10 @@ function gmMakeGraph pId, pAG
                put _scalexy(sAG["XMin"], item 2 of L) into temp
                put item 1 of temp into tX
                put item 2 of temp into tY
-               put formatLabel(item 3 of L, pAG["YAxisLabelFormat"]) into tString
+               -- NB do not format - this graphtype already has explicit labels
+               -- put formatLabel(item 3 of L, pAG["YAxisLabelFormat"]) into tString
+               put formatLabel(item 3 of L, empty) into tString
+               
                put _gmCreateText(pID, tString, tX, tY,\
                      6, FALSE, \
                      empty, \ -- the name for this control
@@ -481,6 +513,10 @@ end gmMakeGraph
 -- not normally user-called, but can be in odd cases
 on _gmCreateDefaults
    local temp
+   
+   put "20,20" into sADefaults["dashed"]
+   put "2,10" into sADefaults["dotted"]
+   put "12,8,2,8" into sADefaults["dotdashed"]
    
    local tDropShadow
    put "255,0,0" into tDropShadow["color"]
@@ -947,6 +983,7 @@ private function formatLabel pLabel, pFormatFunction
    end if
    return tString
 end formatLabel
+
 private function makeTitles pID, pAG, pGraphRect
    local temp
    -- Title
@@ -964,7 +1001,7 @@ private function makeTitles pID, pAG, pGraphRect
       set the vis of tt to TRUE
       --      set the vis of item 1 of temp to TRUE
    end if
-   -- Title
+   -- XTitle
    if pAG["XTitle"] is not empty then
       --      function _gmCreateText pID, pText, pX, pY, pPosition, pRot, pName, pTextSInfo, pTextName
       put _gmCreateText(pID, pAG["XTitle"], \
@@ -974,11 +1011,39 @@ private function makeTitles pID, pAG, pGraphRect
             False, "T_XTitle", \
             pAG["TitleTextInfo"], "Title") into temp
       subtract item 3 of temp from item 4 of pGraphRect
-
+      
       put item 1 of temp into tt
       set the vis of tt to TRUE
       --      set the vis of item 1 of temp to TRUE
    end if
+   -- YTitle
+   local tPict
+   if pAG["YTitle"] is not empty then
+      --      function _gmCreateText pID, pText, pX, pY, pPosition, pRot, pName, pTextSInfo, pTextName
+      put _gmCreateText(pID, pAG["YTitle"], \
+            (item 1 of pGraphRect + item 3 of pGraphRect) / 2, \
+            item 4 of pGraphRect, \
+            7, \ -- i.e. we have given middle top
+            False, "T_YTitle", \
+            pAG["TitleTextInfo"], "Title") into temp
+      --      export snapshot from item 1 of temp to tPict as PNG
+      local tHeight
+      put item 3 of temp into tHeight
+      add tHeight to item 1 of pGraphRect
+      put item 1 of temp into tt
+      import snapshot from tt
+      local t1, t2, t3
+      put it into t1
+      copy t1 to pID
+      put it into tt
+      delete t1
+      set the angle of tt to 90
+      set the loc of tt to \
+            item 1 of pGraphRect - tHeight/2, (item 2 of pGraphRect + item 4 of pGraphRect) / 2
+      set the vis of tt to TRUE
+      --      set the vis of item 1 of temp to TRUE
+   end if
+   
    return pGraphRect
 end makeTitles
 

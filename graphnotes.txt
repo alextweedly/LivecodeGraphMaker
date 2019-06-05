@@ -115,6 +115,9 @@ dropshadow - put in a dropshadow,
                       or a list of lines of name,value pairs ovrriding
 		      the default
 
+dashed, dotted, dotdashed - set true for GM'sdefault setting, or specify a
+         "dashes" setting for the line
+
 YRaxis : use the Right axis for scaling, etc.
 
 marker : name of marker shape to use  (diamond, square, ???)
