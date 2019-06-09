@@ -3,7 +3,7 @@
 -- GraphMaker Library
 -- make a graph / chart
 constant kLibraryName = "GraphMaker"
-constant kLibraryVersion = 0.1
+constant kLibraryVersion = 0.2
 
 local sADefaults, sAMarkers
 local sAG  -- array holding graph-related calculated values
@@ -86,6 +86,7 @@ function gmMakeGraph pId, pAG
    local temp
    local tName, tID
    
+   set the lockscreen to TRUE
    local tRect    -- the rectangle of the (given) group
    put the rect of pId into tRect
    logInfo "rect = " && tRect && the number of controls of pID
@@ -209,7 +210,7 @@ function gmMakeGraph pId, pAG
    subtract sAG["XUnit"] / 2 from Xmin
    add sAG["XUnit"] / 2 to Xmax
    
-   logInfo "min/max X" && Xmin && Xmax && "Y" && Ymin && YMax
+   logInfo "min/max X" && Xmin && Xmax && "Y" && Ymin && YMax && "YRight" && YRmin && YRMax
    
    -- set up the drawing area co-ords
    -- will account for legend, title, labels on axes, etc.
@@ -225,13 +226,22 @@ function gmMakeGraph pId, pAG
    put temp into tGraphRect
    
    --   pID, pLabelName, pNum, pPosition, pFormatFunction
-   if pAG["YTickLabelSpacing"] <> 0 then
-      put findSpaceForAxisLabels(pID, "YaxisLabel", Ymax, 6, pAG["YAxisLabelFormat"]) into temp
+   if pAG["YTickLabelSpacing"] <> 0  then 
+      put findSpaceForAxisLabels(pID, "YaxisLabel", Ymax, 6, pAG["YAxisLabelFormat"], \
+            pAG["YTickLabelRotation"]) into temp
       add item 1 of temp to item 1 of tGraphRect
    end if
    
-   if pAG["XTickLabelSpacing"] <> 0 then
-      put findSpaceForAxisLabels(pID, "XaxisLabel", Xmax, 5, pAG["XAxisLabelFormat"]) into temp
+   if pAG["YRTickLabelSpacing"] <> 0 AND \
+         (YRmin <> YRmax) then
+      put findSpaceForAxisLabels(pID, "YRaxisLabel", Ymax, 8, pAG["YRAxisLabelFormat"], \
+            pAG["YRTickLabelRotation"]) into temp
+      subtract item 1 of temp from item 3 of tGraphRect
+   end if
+   
+   if pAG["XTickLabelSpacing"] < 0 OR pAG["XTickLabelSpacing"] > 0 OR pAG["XTickLabelSpacing"] is empty then
+      put findSpaceForAxisLabels(pID, "XaxisLabel", Xmax, 5, pAG["XAxisLabelFormat"], \
+            pAG["XAxisLabelRotation"]) into temp
       subtract item 2 of temp from item 4 of tGraphRect
    end if
    
@@ -267,6 +277,7 @@ function gmMakeGraph pId, pAG
    
    makeXAxis pID, pAG
    makeYAxis pID, pAG
+   if YRmin <> YRmax then makeYRAxis pID, pAG
    
    local tGraphType
    
@@ -467,16 +478,18 @@ function gmMakeGraph pId, pAG
                -- NB do not format - this graphtype already has explicit labels
                -- put formatLabel(item 2 of L, pAG["XAxisLabelFormat"]) into tString
                put formatLabel(item 2 of L, empty) into tString
-               put _gmCreateText(pID, tString, tX, tY,\
-                     5, FALSE, \
-                     empty, \ -- the name for this control
-                     empty, \ -- the text info for it
-                     "XAxisLabel") \-- the name for any default settings
-                     into temp
-               put item 1 of temp into tName
-               put _gmGetColor(pAG, "color", K, i-2) into temp
-               set the foregroundColor of tName to temp
-               set the vis of tName to TRUE
+               _gmMakeXLabel pID, pAG, tString, item 1 of temp, item 2 of temp, K, i-2
+               
+               --               put _gmCreateText(pID, tString, tX, tY,\
+               --                     5, FALSE, \
+               --                     empty, \ -- the name for this control
+               --                     empty, \ -- the text info for it
+               --                     "XAxisLabel") \-- the name for any default settings
+               --                     into temp
+               --               put item 1 of temp into tName
+               --               put _gmGetColor(pAG, "color", K, i-2) into temp
+               --               set the foregroundColor of tName to temp
+               --               set the vis of tName to TRUE
             end repeat
             break
             
@@ -507,6 +520,7 @@ function gmMakeGraph pId, pAG
    end repeat
    
    put empty into t1
+   set the lockscreen to FALSE
    
 end gmMakeGraph
 
@@ -673,6 +687,83 @@ command makeYAxis pID, pAG
    
 end makeYAxis
 
+command makeYRAxis pID, pAG
+   local tPoints
+   -- draw a YR axis, if needed
+   if pAG["YRTickInterval"] = 0 then 
+      exit makeYRAxis
+   end if
+   
+   local tName
+   put _gmCreateGRC("YR_Axis", pID) into tName
+   set the style of tName to "line"
+   
+   put _scalexy(sAG["Xmax"], sAG["YRmin"], TRUE) &CR into tPoints
+   put _scalexy(sAG["Xmax"], sAG["YRmax"], TRUE) &CR after tPoints
+   
+   adaptTickSettings pAG, "YRTick", sAG["YRS"], sAG["YRmax"]-sAG["YRmin"]
+   
+   local temp
+   if sAG["YRTickInterval"] > 0 then
+      local tBase, tY
+      put sAG["YRTickInterval"] * (sAG["YRmin"] div sAG["YRTickInterval"]) into tBase
+      repeat with i = tBase to sAG["YRmax"] step sAG["YRTickInterval"]
+         if i > sAG["YRmax"]  then 
+            --            logInfo "exiting repeat" && i && Ymax
+            exit repeat
+         end if
+         put i into tY
+         if tY < sAG["YRmin"] then put sAG["YRmin"] into tY
+         put CR after tPoints
+         put _scalexy(sAG["Xmax"], tY, TRUE) into temp
+         put temp & CR after tPoints
+         subtract 10 from item 1 of temp
+         put temp & CR after tPoints
+         --         logInfo "Y tick" && sAG["Xmin"] && i && sAG["YTickInterval"] && line -1 of tPoints
+      end repeat
+   end if
+   
+   
+   if sAG["YRTickLabelspacing"] > 0 then
+      repeat with i = tBase to sAG["YRmax"] step sAG["YRTickLabelspacing"] * sAG["YRTickInterval"]
+         if i > sAG["YRmax"]  then 
+            --            logInfo "exiting repeat" && i && Ymax
+            exit repeat
+         end if
+         put i into tY
+         if tY < sAG["YRmin"] then put sAG["YRmin"] into tY
+         put _scalexy(sAG["Xmax"], tY, TRUE) into temp
+         put formatLabel(tY, pAG["YRAxisLabelFormat"]) into tY
+         put _gmCreateText(pID, tY, item 1 of temp, item 2 of temp,\
+               8, FALSE, \
+               empty, \ -- the name for this control
+               empty, \ -- the text info for it
+               "YRAxisLabel") \-- the name for any default settings
+               into temp
+         --         logInfo "Y label" && temp && sAG["YTickLabelspacing"] && line -1 of tPoints
+         local tt
+         put item 1 of temp into tt
+         set the vis of tt to TRUE
+      end repeat
+   end if
+   
+   if sAG["YRGridInterval"] > 0 then
+      repeat with i = tBase to sAG["YRmax"] step sAG["YRGridInterval"] * sAG["YRTickInterval"]
+         if i > sAG["YRmax"]  then 
+            exit repeat
+         end if
+         put i into tY
+         if tY < sAG["YRmin"] then put sAG["YRmin"] into tY
+         put CR after tPoints
+         put _scalexy(sAG["Xmin"], tY, TRUE) & CR after tPoints
+         put _scalexy(sAG["Xmax"], tY, TRUE) & CR after tPoints
+      end repeat
+   end if
+   set the points of tName to tPoints
+   set the vis of tName to TRUE
+   
+end makeYRAxis
+
 -- private handlers for internal use
 command makeXAxis pID, pAG
    local tPoints
@@ -716,19 +807,12 @@ command makeXAxis pID, pAG
          if i > sAG["Xmax"]  then 
             exit repeat
          end if
+         local tText
          put i into tX
          if tX < sAG["Xmin"] then put sAG["Xmin"] into tX
          put _scalexy(tX, sAG["Ymin"]) into temp
-         put formatLabel(tX, pAG["XAxisLabelFormat"]) into tX
-         put _gmCreateText(pID, tX, item 1 of temp, item 2 of temp,\
-               5, FALSE, \
-               empty, \ -- the name for this control
-               empty, \ -- the text info for it
-               "XAxisLabel") \-- the name for any default settings
-               into temp
-         local tt
-         put item 1 of temp into tt
-         set the vis of tt to TRUE
+         put formatLabel(tX, pAG["XAxisLabelFormat"]) into tText
+         _gmMakeXLabel pID, pAG, tText, item 1 of temp, item 2 of temp
       end repeat
    end if
    
@@ -750,6 +834,30 @@ command makeXAxis pID, pAG
    
 end makeXAxis
 
+on _gmMakeXLabel pID, pAG, pText, pX, pY, pColorNumber, pColorOffset
+   local temp, tColor
+   put _gmCreateText(pID, pText, pX, pY,\
+         5, FALSE, \
+         empty, \ -- the name for this control
+         empty, \ -- the text info for it
+         "XAxisLabel") \-- the name for any default settings
+         into temp
+   -- put "after" && the loc of (item 1 of temp) &CR after msg
+   put _gmGetColor(pAG, "color", pColorNumber, pColorOffset) into tColor
+   set the foregroundColor of (item 1 of temp) to tColor
+   
+   if pAG["XAxisLabelRotation"] is empty OR pAG["XAxisLabelRotation"] = 0 then
+      set the vis of (item 1 of temp) to TRUE
+   else
+      local tXY, tWidth, tHeight
+      put the loc of (item 1 of temp) into tXY
+      --  so calculate new loc by subtracting half height and adding half width
+      put item 2 of temp into tWidth
+      put item 3 of temp into tHeight
+      get _gmTurnTextIntoGraphic(pID, item 1 of temp,  word 2 of item 1 of temp, \
+            item 1 of tXY, item 2 of tXY - tHeight / 2 + tWidth / 2, 90)
+   end if
+end _gmMakeXLabel
 on _gmInsertXValues pAG, @pX, @pStart, @pStep
    switch pAG["DataIncludesX"]
       case TRUE
@@ -909,12 +1017,18 @@ function _gmCreateText pID, pText, pX, pY, pPosition, pRot, pName, pTextInfo, pT
    if pPosition is among the items of "3,4,7" then put -(tH2+10) into tY
    
    set the loc of tName to pX+tX, pY+tY
-   return tName, the width of tName+20, the height of tName+20
+   local tReturn
+   put tName & the itemDel & the width of tName+20 & the itemDel & the height of tName+20 into tReturn
+   
+   return tReturn
 end _gmCreateText
 
 
 private function _gmGetColor pAG, pName, pNumber, pOffset
    local temp, tReturn, tNum
+   if pNumber is empty then
+      return "0,0,0" -- all black if no color info available
+   end if
    put firstOf(pAG["data"][pNumber][pName], pAG[pName] ) into tReturn
    if tReturn is empty then
       put firstOf(sADefaults[pName], \
@@ -956,7 +1070,7 @@ private function combineArrays
    return tAReturn
 end combineArrays
 
-private function findSpaceForAxisLabels pID, pLabelName, pNum, pPosition, pFormatFunction
+private function findSpaceForAxisLabels pID, pLabelName, pNum, pPosition, pFormatFunction, pRotation
    local temp, tID, tReturn
    put _gmCreateText(pID, pNum, 0, 0,\
          pPosition, FALSE, \
@@ -965,10 +1079,20 @@ private function findSpaceForAxisLabels pID, pLabelName, pNum, pPosition, pForma
          pLabelName) \-- the name for any default settings
          into temp
    put item 1 of temp into tID
-   local tString
+   local tString, tIDgrc
    put formatLabel(pNum, pFormatFunction) into tString
    set the text of tID to tString
-   put the formattedwidth of tID & COMMA & the formattedheight of tID into tReturn
+   if pRotation is empty OR pRotation = 0 then
+      put the formattedwidth of tID & COMMA & the formattedheight of tID into tReturn
+   else
+      set the width of tID to the formattedwidth of tID
+      set the height of tID to the formattedheight of tID
+      put _gmTurnTextIntoGraphic(pID, tID,  "fndspace", \
+            0, 0, 90) into tIDgrc
+      delete tID
+      put (item 1 of tIDgrc) into tID
+      put the width of tID & COMMA & the height of tID into tReturn
+   end if
    delete tID
    return tReturn
 end findSpaceForAxisLabels
@@ -1026,26 +1150,50 @@ private function makeTitles pID, pAG, pGraphRect
             7, \ -- i.e. we have given middle top
             False, "T_YTitle", \
             pAG["TitleTextInfo"], "Title") into temp
+      
       --      export snapshot from item 1 of temp to tPict as PNG
       local tHeight
       put item 3 of temp into tHeight
       add tHeight to item 1 of pGraphRect
-      put item 1 of temp into tt
-      import snapshot from tt
-      local t1, t2, t3
-      put it into t1
-      copy t1 to pID
-      put it into tt
-      delete t1
-      set the angle of tt to 90
-      set the loc of tt to \
-            item 1 of pGraphRect - tHeight/2, (item 2 of pGraphRect + item 4 of pGraphRect) / 2
-      set the vis of tt to TRUE
-      --      set the vis of item 1 of temp to TRUE
+      get _gmTurnTextIntoGraphic(pID, item 1 of temp,  "T_YTitle", \
+            item 1 of pGraphRect - tHeight/2, (item 2 of pGraphRect + item 4 of pGraphRect) / 2, 90)
+   end if
+   -- YRTitle
+   if pAG["YRTitle"] is not empty then
+      --      function _gmCreateText pID, pText, pX, pY, pPosition, pRot, pName, pTextSInfo, pTextName
+      put _gmCreateText(pID, pAG["YRTitle"], \
+            (item 1 of pGraphRect + item 3 of pGraphRect) / 2, \
+            item 4 of pGraphRect, \
+            7, \ -- i.e. we have given middle top
+            False, "T_YRTitle", \
+            pAG["TitleTextInfo"], "Title") into temp
+      --      export snapshot from item 1 of temp to tPict as PNG
+      put item 3 of temp into tHeight
+      subtract tHeight from item 3 of pGraphRect
+      get _gmTurnTextIntoGraphic(pID, item 1 of temp, "T_YRTitle", \
+            item 3 of pGraphRect + tHeight/2, (item 2 of pGraphRect + item 4 of pGraphRect) / 2, 90)
    end if
    
    return pGraphRect
 end makeTitles
+
+function _gmTurnTextIntoGraphic pID, pTextID, pName, pX, pY, pRot
+   --      export snapshot from item 1 of temp to tPict as PNG
+   local tt, t1, t2
+   put pTextID into tt
+   import snapshot from tt
+   set the name of it to pName
+   --   put "turn" && pName &CR & the name of it &CR after msg
+   put it into t1
+   copy t1 to pID
+   put it into tt
+   delete t1
+   set the angle of tt to pRot
+   set the loc of tt to pX, pY
+   set the vis of tt to TRUE
+   return tt & comma & the width of tt & comma & the height of tt
+end _gmTurnTextIntoGraphic
+
 
 on adaptTickSettings pAG, pTickName, pScale, pPerfect
    -- pPerfect is max possible range for the axis
