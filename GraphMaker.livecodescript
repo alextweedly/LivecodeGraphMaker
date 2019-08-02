@@ -804,15 +804,20 @@ command makeXAxis pID, pAG
    
    if sAG["XTickLabelspacing"] > 0 then
       repeat with i = tBase to sAG["Xmax"] step sAG["XTickLabelspacing"] * sAG["XTickInterval"]
-         if i > sAG["Xmax"]  then 
-            exit repeat
+         put i into tX
+         if i > sAG["Xmax"] - sAG["XTickInterval"] then 
+            if pAG["XAxisLabelForceRightAxisLabel"] then
+               put sAG["Xmax"] into tX
+            else 
+               exit repeat
+            end if
          end if
          local tText
-         put i into tX
          if tX < sAG["Xmin"] then put sAG["Xmin"] into tX
          put _scalexy(tX, sAG["Ymin"]) into temp
          put formatLabel(tX, pAG["XAxisLabelFormat"]) into tText
          _gmMakeXLabel pID, pAG, tText, item 1 of temp, item 2 of temp
+         if i > sAG["Xmax"]  then exit repeat
       end repeat
    end if
    
